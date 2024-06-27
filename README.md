@@ -88,7 +88,7 @@ To use this tool, you need to set up Gmail API access and obtain a `credentials.
    - Download the client configuration file and rename it to `credentials.json`
 5. Place the `credentials.json` file in the root directory of the project.
 
-[![Gmail API Access Guide](./Gmail_API_Access_Guide.jpeg)](https://github.com/Vishnuujain/Gmail-Attachment-Extractor/blob/main/Gmail_API_Access_Guide.jpeg)
+[Click here to view the Gmail API Access Guide](https://github.com/Vishnuujain/Gmail-Attachment-Extractor/blob/main/Gmail_API_Access_Guide.jpeg)
 
 
 ## Usage
