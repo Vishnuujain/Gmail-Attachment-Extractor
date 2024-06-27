@@ -88,6 +88,8 @@ To use this tool, you need to set up Gmail API access and obtain a `credentials.
    - Download the client configuration file and rename it to `credentials.json`
 5. Place the `credentials.json` file in the root directory of the project.
 
+
+
 ## Usage
 
 1. Ensure you have completed the installation steps and have your `credentials.json` file in place.
@@ -108,6 +110,9 @@ To use this tool, you need to set up Gmail API access and obtain a `credentials.
 5. Click "Download Attachments" to start the process.
 
 6. The tool will create a new folder for your search results and download the matching attachments.
+
+## Demo Video
+https://www.loom.com/share/6895081fd41f46c48fefade055e7d822 
 
 ### Notes
 
