@@ -114,6 +114,9 @@ To use this tool, you need to set up Gmail API access and obtain a `credentials.
 ## Demo Video
 https://www.loom.com/share/6895081fd41f46c48fefade055e7d822 
 
+![Gmail API Access Guide](./Gmail_API_Access_Guide.jpeg)
+
+
 ### Notes
 
 - On first use, you'll need to authorize the application to access your Gmail account.
