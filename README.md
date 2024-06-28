@@ -58,8 +58,8 @@ These requirements are specified in the `requirements.txt` file, which is includ
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/gmail-attachment-downloader.git
-   cd gmail-attachment-downloader
+   git clone https://github.com/your-username/gmail-attachment-extractor.git
+   cd gmail-attachment-extractor
    ```
 
 2. Create a virtual environment (optional but recommended):
