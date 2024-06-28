@@ -27,6 +27,9 @@ The Gmail Attachment Downloader is a Python-based tool that allows users to effi
   - Date range
   - Attachment file name
   - Attachment size
+  - Label Name Filter
+  - File Name Filter
+  - Custom Name for Download_Folder
 - **Bulk Download**: Download multiple attachments matching your search criteria in one go
 - **Organized Storage**: Automatically create folders for each search query to keep downloads organized
 - **Duplicate Handling**: Prevent overwriting by adding unique identifiers to files with the same name
