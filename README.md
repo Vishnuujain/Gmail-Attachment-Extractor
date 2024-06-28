@@ -7,7 +7,6 @@
 - [Installation Guide](#installation-guide)
 - [Setting Up Gmail API Access](#setting-up-gmail-api-access)
 - [Usage](#usage)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Project Overview
