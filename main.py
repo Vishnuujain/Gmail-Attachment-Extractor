@@ -1,3 +1,6 @@
+#New features from main : It can also download the attachments from labels
+# Improvement: No folder created when no file is created and custom folder naming option
+
 import os
 import base64
 from google.oauth2.credentials import Credentials
@@ -24,14 +27,21 @@ def authenticate():
             token.write(creds.to_json())
     return creds
 
-def search_emails(service, query):
+def search_emails(service, query, label_id=None):
     try:
-        results = service.users().messages().list(userId='me', q=query).execute()
+        if label_id:
+            results = service.users().messages().list(userId='me', labelIds=[label_id]).execute()
+        else:
+            results = service.users().messages().list(userId='me', q=query).execute()
+        
         messages = results.get('messages', [])
         
         while 'nextPageToken' in results:
             page_token = results['nextPageToken']
-            results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
+            if label_id:
+                results = service.users().messages().list(userId='me', labelIds=[label_id], pageToken=page_token).execute()
+            else:
+                results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
             messages.extend(results.get('messages', []))
         
         return messages
@@ -48,13 +58,22 @@ def get_attachment(service, msg_id, attachment_id):
         print(f"An error occurred while getting attachment: {e}")
         return None
 
-def create_download_folder(search_query):
-    folder_name = re.sub(r'[^\w\-_\. ]', '_', search_query)
-    folder_name = f"{folder_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-    
+def create_download_folder(folder_name, search_query):
+    if folder_name:
+        return folder_name
+    else:
+        sanitized_query = re.sub(r'[^\w\-_\. ]', '_', search_query)
+        return f"{sanitized_query}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+def get_unique_folder_name(base_folder_name):
+    folder_name = base_folder_name
+    counter = 1
+    while os.path.exists(folder_name):
+        if counter == 1:
+            folder_name = f"{base_folder_name}_1"
+        else:
+            folder_name = f"{base_folder_name}_{counter}"
+        counter += 1
     return folder_name
 
 def get_unique_filename(folder_path, file_name):
@@ -68,9 +87,29 @@ def get_unique_filename(folder_path, file_name):
     
     return new_name
 
-def download_attachments(search_query, start_date, end_date, min_size, max_size, name_filter):
+def get_label_id(service, label_name):
+    try:
+        results = service.users().labels().list(userId='me').execute()
+        labels = results.get('labels', [])
+        
+        for label in labels:
+            if label['name'].lower() == label_name.lower():
+                return label['id']
+        
+        return None
+    except Exception as e:
+        print(f"An error occurred while getting label ID: {e}")
+        return None
+
+def download_attachments(search_query, start_date, end_date, min_size, max_size, name_filter, label_name, folder_name):
     creds = authenticate()
     service = build('gmail', 'v1', credentials=creds)
+
+    label_id = None
+    if label_name:
+        label_id = get_label_id(service, label_name)
+        if not label_id:
+            return f"Label '{label_name}' not found."
 
     query = f"{search_query} has:attachment"
     if start_date:
@@ -81,10 +120,9 @@ def download_attachments(search_query, start_date, end_date, min_size, max_size,
         query += f" filename:{name_filter}"
 
     print(f"Searching with query: {query}")
-    messages = search_emails(service, query)
+    messages = search_emails(service, query, label_id)
     print(f"Found {len(messages)} messages matching the search criteria.")
 
-    download_folder = create_download_folder(search_query)
     downloaded_files = []
 
     for message in messages:
@@ -103,18 +141,24 @@ def download_attachments(search_query, start_date, end_date, min_size, max_size,
                         file_size = len(file_data)
                         if min_size <= file_size <= max_size:
                             original_file_name = part['filename']
-                            file_name = get_unique_filename(download_folder, original_file_name)
-                            file_path = os.path.join(download_folder, file_name)
-                            
-                            with open(file_path, 'wb') as f:
-                                f.write(file_data)
-                            downloaded_files.append(file_name)
-                            print(f"Downloaded: {file_name}")
+                            downloaded_files.append((original_file_name, file_data))
 
     if downloaded_files:
-        return f"Downloaded {len(downloaded_files)} attachments to folder '{download_folder}': {', '.join(downloaded_files)}"
+        base_folder_name = create_download_folder(folder_name, search_query)
+        download_folder = get_unique_folder_name(base_folder_name)
+        os.makedirs(download_folder)
+        
+        for file_name, file_data in downloaded_files:
+            file_name = get_unique_filename(download_folder, file_name)
+            file_path = os.path.join(download_folder, file_name)
+            
+            with open(file_path, 'wb') as f:
+                f.write(file_data)
+            print(f"Downloaded: {file_name}")
+
+        return f"Downloaded {len(downloaded_files)} attachments to folder '{download_folder}': {', '.join([f[0] for f in downloaded_files])}"
     else:
-        return f"No attachments found matching the specified criteria. Folder '{download_folder}' was created but is empty."
+        return f"No attachments found matching the specified criteria."
 
 def launch_interface():
     with gr.Blocks(css="footer {visibility: hidden}") as interface:
@@ -130,7 +174,8 @@ def launch_interface():
         
         **Note:** 
         - On first use, you'll need to authorize the application to access your Gmail account.
-        - A new folder will be created for each search query to organize downloads.
+        - A new folder will be created for each search query to organize downloads (only if attachments are found).
+        - If you provide a custom folder name, it will be used as-is. Otherwise, a folder name will be generated based on your search query with a timestamp.
         - Files with the same name will be saved with a unique identifier to prevent overwriting.
         - Enter dates in the format YYYY/MM/DD (e.g., 2023/06/30).
         """
@@ -147,13 +192,15 @@ def launch_interface():
             max_size = gr.Number(label="Maximum Size (bytes)", value=1000000000)
         
         name_filter = gr.Textbox(label="File Name Filter (optional)")
+        label_name = gr.Textbox(label="Gmail Label (optional)")
+        folder_name = gr.Textbox(label="Custom Folder Name (optional)")
         
         download_button = gr.Button("Download Attachments")
         output = gr.Textbox(label="Output")
         
         download_button.click(
             download_attachments,
-            inputs=[search_query, start_date, end_date, min_size, max_size, name_filter],
+            inputs=[search_query, start_date, end_date, min_size, max_size, name_filter, label_name, folder_name],
             outputs=output
         )
     
