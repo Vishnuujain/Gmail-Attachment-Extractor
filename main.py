@@ -1,5 +1,6 @@
 #New features from main : It can also download the attachments from labels
 # Improvement: No folder created when no file is created and custom folder naming option
+# Downloading and segregating downloaded files into folder with multiples of 15 files 
 
 import os
 import base64
@@ -10,6 +11,7 @@ from googleapiclient.discovery import build
 from datetime import datetime
 import gradio as gr
 import re
+import math
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
@@ -101,6 +103,19 @@ def get_label_id(service, label_name):
         print(f"An error occurred while getting label ID: {e}")
         return None
 
+def create_segregated_folders(base_folder_name, downloaded_files):
+    folders = []
+    total_files = len(downloaded_files)
+    num_folders = math.ceil(total_files / 15)
+
+    for i in range(num_folders):
+        folder_name = f"{base_folder_name}_{i+1}"
+        folder_path = get_unique_folder_name(folder_name)
+        os.makedirs(folder_path)
+        folders.append(folder_path)
+
+    return folders
+
 def download_attachments(search_query, start_date, end_date, min_size, max_size, name_filter, label_name, folder_name):
     creds = authenticate()
     service = build('gmail', 'v1', credentials=creds)
@@ -145,18 +160,20 @@ def download_attachments(search_query, start_date, end_date, min_size, max_size,
 
     if downloaded_files:
         base_folder_name = create_download_folder(folder_name, search_query)
-        download_folder = get_unique_folder_name(base_folder_name)
-        os.makedirs(download_folder)
+        folders = create_segregated_folders(base_folder_name, downloaded_files)
         
-        for file_name, file_data in downloaded_files:
-            file_name = get_unique_filename(download_folder, file_name)
-            file_path = os.path.join(download_folder, file_name)
+        for i, (file_name, file_data) in enumerate(downloaded_files):
+            folder_index = i // 15
+            folder_path = folders[folder_index]
+            file_name = get_unique_filename(folder_path, file_name)
+            file_path = os.path.join(folder_path, file_name)
             
             with open(file_path, 'wb') as f:
                 f.write(file_data)
-            print(f"Downloaded: {file_name}")
+            print(f"Downloaded: {file_name} to {folder_path}")
 
-        return f"Downloaded {len(downloaded_files)} attachments to folder '{download_folder}': {', '.join([f[0] for f in downloaded_files])}"
+        folder_summary = [f"{folder}: {min(15, len(downloaded_files) - i*15)} files" for i, folder in enumerate(folders)]
+        return f"Downloaded {len(downloaded_files)} attachments across {len(folders)} folders:\n" + "\n".join(folder_summary)
     else:
         return f"No attachments found matching the specified criteria."
 
